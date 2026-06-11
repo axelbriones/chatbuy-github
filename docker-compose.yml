@@ -1,0 +1,22 @@
+
+services:
+  
+  fastapi:
+    build: ./api/src
+    command: uvicorn app.main:app --reload --workers 1  --workers 1 --host 0.0.0.0 --port 8000
+    volumes:
+      - ./api/src/:/usr/src/app/
+    restart: always
+    ports:
+      - 8002:8000 # fastapiport serve
+
+  nginx:
+    image: nginx:latest
+    container_name: nginx
+    restart: always
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx:/etc/nginx/conf.d
+    
+
