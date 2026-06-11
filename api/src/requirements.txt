@@ -1,0 +1,7 @@
+fastapi
+boto3
+jinja2
+fpdf2
+uvicorn
+openpyxl
+weasyprint
