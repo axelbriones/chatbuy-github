@@ -302,6 +302,140 @@ def buil_pdf(data, name="anonimo"):
 
 
 
+def buil_pdf_filtered_adq(data, year_adq, method_adq, name="anonimo"):
+    # Plantilla HTML
+    template_list = Environment().from_string("""
+    <html>
+    <head>
+        <style>
+            @page {
+                size: A4 landscape; /* Establecer tamaño de página A4 en formato horizontal */
+                margin: 6mm; /* Margen opcional */
+            }
+            @font-face {
+                font-family: 'Montserrat';
+                src: url('Montserrat-Regular.ttf') format('truetype');
+            }
+            body {
+                font-family: 'Montserrat', sans-serif;
+                font-size: 14px;
+            }
+            table { width: 100%; border-collapse: collapse; }
+            th {
+                border-bottom: 1px solid black;
+                padding: 8px;
+                text-align: center;
+                vertical-align: center;
+                width: 100px;
+            }
+            td {
+                border-bottom: 1px solid black;
+                padding: 8px;
+                text-align: center;
+                vertical-align: center;
+                overflow-wrap: break-word;
+                text-overflow: elipsis;
+                width: 100px;
+                height: 90px;
+            }
+            img { height: 80px; max-width: 80px; /* Limitar tamaño de la imagen */ }
+        </style>
+    </head>
+    <body>
+        <sup><i>{{ now }}</i></sup>
+        <h1>Resumen de Obras adquiridas en el año {{ year_adq }} en {{ method_adq }}</h1>
+        <table>
+            <thead>
+                <tr>
+                    <th>Imagen</th>
+                    <th>Artista</th>
+                    <th>Medio</th>
+                    <th>Nombre</th>
+                    <th>Descripción</th>
+                    <th>Año</th>
+                    <th>Año de adquisición</th>
+                    <th>Pais</th>
+                    <th>Medidas</th>
+                    <th>Ubicación obra</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for obra in obras %}
+                    <tr>
+                        <td><img src="{{ obra.imagen | escape }}" alt="imagen"></td>
+                        <td>{{ obra.artista }}</td>
+                        <td>{{ obra.medio }}</td>
+                        <td>{{ obra.nombre }}</td>
+                        <td>{{ obra.descripcion }}</td>
+                        <td style="max-width: 70px;">{{ obra.año }}</td>
+                        <td style="max-width: 70px;">{{ obra.año_adquisicion }}</td>
+                        <td>{{ obra.pais }}</td>
+                        <td style="max-width: 70px;">{{ obra.medidas }}</td>
+                        <td>{{ obra.ubicacion_obra }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </body>
+    </html>
+    """)
+
+    obras = []
+    for item in data:
+        image_url = item.get('photo_thumb', 'https://qullqua-uploads.s3.amazonaws.com/blanco2.jpeg') or 'https://qullqua-uploads.s3.amazonaws.com/blanco2.jpeg'
+        encoded_image_url = quote(image_url, safe='/:')
+        description = item.get('description', '')
+        description = description[:50] if description else ''
+        medidas = item.get('sizes_des', '')
+        medidas = medidas[:40] if medidas else ''
+        date_adq = item.get('date_adquisition', '')
+        year_of_adq = date_adq.split('-')[0] if date_adq else ''
+
+        item2 = {
+            "descripcion": description,
+            "medidas": medidas,
+            "imagen": encoded_image_url,
+            "medio": item.get('tecnique_name', ''),
+            "artista": item.get('author', ''),
+            "nombre": item.get('atname', ''),
+            "año": item.get('year_at', ''),
+            "año_adquisicion": year_of_adq,
+            "pais": item.get('country_name', ''),
+            "ubicacion_obra": item.get('artwork_location', '')
+        }
+        obras.append(item2)
+
+    # Ordenar obras por artista (de A a Z)
+    obras.sort(key=lambda x: (x['artista'] or '').lower())
+
+    # Generar HTML con Jinja2
+    now = time.strftime("%Y-%m-%d %H:%M:%S")
+    display_method = method_adq if method_adq else 'Todas'
+    rendered_html = template_list.render(obras=obras, now=now, year_adq=year_adq, method_adq=display_method)
+
+    # Generar nombre del archivo PDF
+    timestamp = int(time.time())
+    filename = f"Resumen-filtrado-adq-{name}-{timestamp}.pdf"
+
+    # Crear PDF usando WeasyPrint
+    pdf = HTML(string=rendered_html).write_pdf()
+
+    # Guardar el PDF en un archivo
+    with open(filename, 'wb') as f:
+        f.write(pdf)
+
+    # Subir el PDF a S3
+    s3.upload_file(filename, s3_bucket, filename, ExtraArgs={'ACL': 'public-read'})
+    s3_url = s3.generate_presigned_url(
+        ClientMethod="get_object",
+        Params={"Bucket": s3_bucket, "Key": filename}
+    )
+
+    # Eliminar el archivo local
+    os.remove(filename)
+
+    return s3_url.split("?")[0]
+
 def buil_pdf_adq(data, name="anonimo"):
     
     # Plantilla HTML
@@ -432,7 +566,7 @@ def buil_pdf_adq(data, name="anonimo"):
 
 
 @app.get("/summary/pdf")
-async def read_root(token: str = None, sumary : str = '1', limit : int = 10000):
+async def read_root(token: str = None, sumary : str = '1', limit : int = 10000, year_adq: str = None, method_adq: str = None):
     if token == None:
         result = table.scan(    
         )
@@ -455,6 +589,26 @@ async def read_root(token: str = None, sumary : str = '1', limit : int = 10000):
             )
             items.extend(result['Items'])
     items = items[:limit]
+
+    if year_adq or method_adq:
+        filtered_items = []
+        for item in items:
+            match_year = True
+            match_method = True
+
+            if year_adq:
+                date_adq = item.get('date_adquisition')
+                if not date_adq or not date_adq.startswith(str(year_adq)):
+                    match_year = False
+
+            if method_adq:
+                if item.get('adquisition') != method_adq:
+                    match_method = False
+
+            if match_year and match_method:
+                filtered_items.append(item)
+        items = filtered_items
+
     for item in items:
 
         tecnique_name = "N/A"
@@ -496,7 +650,9 @@ async def read_root(token: str = None, sumary : str = '1', limit : int = 10000):
     else:
         user = "admin"
         
-    if sumary == '2':
+    if sumary == '3':
+        url = buil_pdf_filtered_adq(items, year_adq, method_adq, user)
+    elif sumary == '2':
         url = buil_pdf_adq(items, user)
     else:  
         url = buil_pdf(items, user)
