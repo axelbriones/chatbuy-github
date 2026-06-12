@@ -625,25 +625,37 @@ async def read_root(token: str = None, sumary : str = '1', limit : int = 10000, 
         should_filter_year = bool(clean_year) and clean_year.lower() not in ignore_values
         should_filter_method = bool(clean_method) and clean_method.lower() not in ignore_values
 
+        print(f"--- DEBUGGING PDF FILTER ---")
+        print(f"Received year_adq: '{year_adq}' -> cleaned: '{clean_year}', filtering? {should_filter_year}")
+        print(f"Received method_adq: '{method_adq}' -> cleaned: '{clean_method}', filtering? {should_filter_method}")
+        print(f"Total items before filter: {len(items)}")
+
         if should_filter_year or should_filter_method:
             filtered_items = []
-            for item in items:
+
+            for idx, item in enumerate(items):
                 match_year = True
                 match_method = True
 
+                year_adq_val = item.get('year_adquisition')
+                adq_val = item.get('adquisition')
+
                 if should_filter_year:
-                    year_adq_val = item.get('year_adquisition')
                     if not year_adq_val or str(year_adq_val).strip() != clean_year:
                         match_year = False
 
                 if should_filter_method:
-                    adq_val = item.get('adquisition')
                     if not adq_val or str(adq_val).strip().lower() != clean_method.lower():
                         match_method = False
+
+                if idx < 5:  # Print first 5 items to diagnose
+                     print(f"Item {idx}: year_adquisition='{year_adq_val}', adquisition='{adq_val}' | Matched year? {match_year}, method? {match_method}")
 
                 if match_year and match_method:
                     filtered_items.append(item)
             items = filtered_items
+            print(f"Total items after filter: {len(items)}")
+            print(f"----------------------------")
 
     for item in items:
 
