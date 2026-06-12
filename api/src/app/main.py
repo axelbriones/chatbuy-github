@@ -617,23 +617,33 @@ async def read_root(token: str = None, sumary : str = '1', limit : int = 10000, 
     items = items[:limit]
 
     if year_adq or method_adq:
-        filtered_items = []
-        for item in items:
-            match_year = True
-            match_method = True
+        # Ignore filter values that mean "All" or are empty strings
+        ignore_values = ["todas", "todos", "all", "null", "undefined", ""]
+        clean_year = str(year_adq).strip() if year_adq else ""
+        clean_method = str(method_adq).strip() if method_adq else ""
 
-            if year_adq:
-                year_adq_val = item.get('year_adquisition')
-                if not year_adq_val or str(year_adq_val) != str(year_adq):
-                    match_year = False
+        should_filter_year = bool(clean_year) and clean_year.lower() not in ignore_values
+        should_filter_method = bool(clean_method) and clean_method.lower() not in ignore_values
 
-            if method_adq:
-                if item.get('adquisition') != method_adq:
-                    match_method = False
+        if should_filter_year or should_filter_method:
+            filtered_items = []
+            for item in items:
+                match_year = True
+                match_method = True
 
-            if match_year and match_method:
-                filtered_items.append(item)
-        items = filtered_items
+                if should_filter_year:
+                    year_adq_val = item.get('year_adquisition')
+                    if not year_adq_val or str(year_adq_val).strip() != clean_year:
+                        match_year = False
+
+                if should_filter_method:
+                    adq_val = item.get('adquisition')
+                    if not adq_val or str(adq_val).strip().lower() != clean_method.lower():
+                        match_method = False
+
+                if match_year and match_method:
+                    filtered_items.append(item)
+            items = filtered_items
 
     for item in items:
 
