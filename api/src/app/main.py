@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 import boto3
 from fpdf import FPDF, HTML2FPDF
@@ -36,14 +36,26 @@ s3 = boto3.client('s3', region_name='us-east-1',
                           aws_secret_access_key=AWS_SECRET_ACCESS_KEY)
 
 
-table = dynamodb.Table('collector-atwork-pro')
-table_country = dynamodb.Table('collector-country-pro')
-table_tecnique = dynamodb.Table('collector-technique-pro')
-table_category = dynamodb.Table('collector-category-pro')
-table_art = dynamodb.Table('collector-artist-pro')
-table_coll = dynamodb.Table('collector-collection-pro')
-table_user = dynamodb.Table('collector-users-pro')
+def get_tables(request: Request):
+    # Detect the environment based on the host or origin
+    origin = request.headers.get("origin", "")
+    referer = request.headers.get("referer", "")
+    host = request.headers.get("host", "")
 
+    # Check if 'dev' or 'collectorv2' is in the request domain
+    is_dev = "collectorv2.qullqa.art" in origin or "collectorv2.qullqa.art" in referer or "collectorv2.qullqa.art" in host or "dev" in origin or "dev" in host
+
+    suffix = "dev" if is_dev else "pro"
+
+    return {
+        "table": dynamodb.Table(f'collector-atwork-{suffix}'),
+        "table_country": dynamodb.Table(f'collector-country-{suffix}'),
+        "table_tecnique": dynamodb.Table(f'collector-technique-{suffix}'),
+        "table_category": dynamodb.Table(f'collector-category-{suffix}'),
+        "table_art": dynamodb.Table(f'collector-artist-{suffix}'),
+        "table_coll": dynamodb.Table(f'collector-collection-{suffix}'),
+        "table_user": dynamodb.Table(f'collector-users-{suffix}')
+    }
 
 
 
@@ -592,7 +604,13 @@ def buil_pdf_adq(data, name="anonimo"):
 
 
 @app.get("/summary/pdf")
-async def read_root(token: str = None, sumary : str = '1', limit : int = 10000, year_adq: str = None, method_adq: str = None):
+async def read_root(request: Request, token: str = None, sumary : str = '1', limit : int = 10000, year_adq: str = None, method_adq: str = None):
+    tables = get_tables(request)
+    table = tables["table"]
+    table_tecnique = tables["table_tecnique"]
+    table_country = tables["table_country"]
+    table_user = tables["table_user"]
+
     if token == None:
         result = table.scan(    
         )
@@ -696,7 +714,10 @@ async def read_root(token: str = None, sumary : str = '1', limit : int = 10000, 
 
 
 @app.get("/inventory/location")
-async def read_root(token: str = None):
+async def read_root(request: Request, token: str = None):
+    tables = get_tables(request)
+    table = tables["table"]
+    table_user = tables["table_user"]
     
     if token == None:
         result = table.scan(    
@@ -752,7 +773,11 @@ async def read_root(token: str = None):
 
 
 @app.get("/inventory/medio")
-async def read_root(token: str = None):
+async def read_root(request: Request, token: str = None):
+    tables = get_tables(request)
+    table = tables["table"]
+    table_tecnique = tables["table_tecnique"]
+    table_user = tables["table_user"]
     
     if token == None:
         result = table.scan(    
@@ -827,7 +852,12 @@ async def read_root(token: str = None):
     return {"url": url}
 
 @app.get("/excel/simple")
-async def read_root(token: str = None):
+async def read_root(request: Request, token: str = None):
+    tables = get_tables(request)
+    table = tables["table"]
+    table_tecnique = tables["table_tecnique"]
+    table_category = tables["table_category"]
+    table_user = tables["table_user"]
     
     if token == None:
         result = table.scan(    
@@ -899,7 +929,14 @@ async def read_root(token: str = None):
 
 
 @app.get("/excel/todo")
-async def read_root(token: str = None):
+async def read_root(request: Request, token: str = None):
+    tables = get_tables(request)
+    table = tables["table"]
+    table_country = tables["table_country"]
+    table_tecnique = tables["table_tecnique"]
+    table_category = tables["table_category"]
+    table_coll = tables["table_coll"]
+    table_user = tables["table_user"]
     
     if token == None:
         result = table.scan(    
@@ -1013,7 +1050,13 @@ async def read_root(token: str = None):
 
 
 @app.get("/artwoks/order")
-async def read_root(token: str = None, field: str  = None, order: str= "ASC" ):
+async def read_root(request: Request, token: str = None, field: str  = None, order: str= "ASC" ):
+    tables = get_tables(request)
+    table = tables["table"]
+    table_country = tables["table_country"]
+    table_tecnique = tables["table_tecnique"]
+    table_category = tables["table_category"]
+    table_coll = tables["table_coll"]
     
     if token == None:
         result = table.scan(    
