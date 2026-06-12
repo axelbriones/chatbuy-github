@@ -208,7 +208,7 @@ def buil_pdf(data, name="anonimo"):
                 width: 100px;
                 height: 90px;
             }
-            img { height: 80px; max-width: 80px; /* Limitar tamaño de la imagen */ }
+            img { height: 80px; max-width: 80px; object-fit: contain; }
         </style>
     </head>
     <body>
@@ -250,8 +250,17 @@ def buil_pdf(data, name="anonimo"):
 
     obras = []
     for item in data:
-        image_url = item.get('photo_thumb', 'https://qullqua-uploads.s3.amazonaws.com/blanco2.jpeg')
-        encoded_image_url = quote(image_url, safe='/:')
+        image_url = item.get('photo_thumb')
+        if not image_url:
+            photo = item.get('photo')
+            if isinstance(photo, list) and len(photo) > 0:
+                image_url = photo[0]
+            elif isinstance(photo, str) and photo:
+                image_url = photo
+            else:
+                image_url = 'https://qullqua-uploads.s3.amazonaws.com/blanco2.jpeg'
+
+        encoded_image_url = quote(image_url, safe='/:?&=')
         description = item.get('description', '')
         description = description[:50] if description else ''
         medidas = item.get('sizes_des', '')
@@ -338,7 +347,7 @@ def buil_pdf_filtered_adq(data, year_adq, method_adq, name="anonimo"):
                 width: 100px;
                 height: 90px;
             }
-            img { height: 80px; max-width: 80px; /* Limitar tamaño de la imagen */ }
+            img { height: 80px; max-width: 80px; object-fit: contain; }
         </style>
     </head>
     <body>
@@ -382,8 +391,17 @@ def buil_pdf_filtered_adq(data, year_adq, method_adq, name="anonimo"):
 
     obras = []
     for item in data:
-        image_url = item.get('photo_thumb', 'https://qullqua-uploads.s3.amazonaws.com/blanco2.jpeg') or 'https://qullqua-uploads.s3.amazonaws.com/blanco2.jpeg'
-        encoded_image_url = quote(image_url, safe='/:')
+        image_url = item.get('photo_thumb')
+        if not image_url:
+            photo = item.get('photo')
+            if isinstance(photo, list) and len(photo) > 0:
+                image_url = photo[0]
+            elif isinstance(photo, str) and photo:
+                image_url = photo
+            else:
+                image_url = 'https://qullqua-uploads.s3.amazonaws.com/blanco2.jpeg'
+
+        encoded_image_url = quote(image_url, safe='/:?&=')
         description = item.get('description', '')
         description = description[:50] if description else ''
         medidas = item.get('sizes_des', '')
@@ -517,8 +535,17 @@ def buil_pdf_adq(data, name="anonimo"):
     # Preparar los datos de las obras
     obras = []
     for item in data:
-        image_url = item.get('photo_thumb', 'https://qullqua-uploads.s3.amazonaws.com/blanco2.jpeg') or 'https://qullqua-uploads.s3.amazonaws.com/blanco2.jpeg'
-        encoded_image_url = quote(image_url, safe="/:")
+        image_url = item.get('photo_thumb')
+        if not image_url:
+            photo = item.get('photo')
+            if isinstance(photo, list) and len(photo) > 0:
+                image_url = photo[0]
+            elif isinstance(photo, str) and photo:
+                image_url = photo
+            else:
+                image_url = 'https://qullqua-uploads.s3.amazonaws.com/blanco2.jpeg'
+
+        encoded_image_url = quote(image_url, safe='/:?&=')
         medidas = item.get('sizes_des', '')
         medidas = medidas[:40] if medidas else ''
         item2 = {
