@@ -388,8 +388,7 @@ def buil_pdf_filtered_adq(data, year_adq, method_adq, name="anonimo"):
         description = description[:50] if description else ''
         medidas = item.get('sizes_des', '')
         medidas = medidas[:40] if medidas else ''
-        date_adq = item.get('date_adquisition', '')
-        year_of_adq = date_adq.split('-')[0] if date_adq else ''
+        year_of_adq = item.get('year_adquisition', '')
 
         item2 = {
             "descripcion": description,
@@ -597,8 +596,8 @@ async def read_root(token: str = None, sumary : str = '1', limit : int = 10000, 
             match_method = True
 
             if year_adq:
-                date_adq = item.get('date_adquisition')
-                if not date_adq or not date_adq.startswith(str(year_adq)):
+                year_adq_val = item.get('year_adquisition')
+                if not year_adq_val or str(year_adq_val) != str(year_adq):
                     match_year = False
 
             if method_adq:
